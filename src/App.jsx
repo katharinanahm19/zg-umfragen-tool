@@ -8,8 +8,8 @@ const CHECKLIST_GREEN = [
   "Instagram Bio",
   "WhatsApp Status und Direktnachrichten",
   "Facebook Gruppen (thematisch passend)",
-  "Facebook Profil: „Ich arbeite an etwas Neuem und brauche kurz deine Hilfe…"",
-  "Im persönlichen Umfeld gezielt fragen („Kennst du jemanden, der…")",
+  'Facebook Profil: \u201eIch arbeite an etwas Neuem und brauche kurz deine Hilfe\u2026\u201c',
+  'Im persönlichen Umfeld gezielt fragen (\u201eKennst du jemanden, der\u2026\u201c)',
   "DMs an Follower bei Insta/LinkedIn/Facebook",
   "Circle (Launch Sisters)",
 ];
