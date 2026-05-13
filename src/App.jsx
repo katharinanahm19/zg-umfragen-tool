@@ -471,60 +471,167 @@ export default function App() {
     if (!jspdf) return;
     const { jsPDF } = jspdf;
     const doc = new jsPDF();
+    const pageW = 210;
     const margin = 20;
-    const cw = 170;
-    let y = margin;
+    const cw = pageW - margin * 2;
+    let y = 0;
 
-    const txt = (text, x, size, style = "normal", rgb = [40, 40, 40]) => {
-      doc.setFontSize(size);
-      doc.setFont("helvetica", style);
-      doc.setTextColor(...rgb);
-      const lines = doc.splitTextToSize(String(text), cw - (x - margin));
-      if (y + lines.length * size * 0.38 > 282) { doc.addPage(); y = margin; }
-      doc.text(lines, x, y);
-      y += lines.length * size * 0.38 + 1.5;
+    const checkPage = (needed = 10) => {
+      if (y + needed > 280) { doc.addPage(); y = margin; }
     };
 
-    txt("Zielgruppenumfrage", margin, 20, "bold", [26, 69, 53]);
-    y += 1;
-    txt(thema, margin, 9, "normal", [120, 120, 120]);
-    y += 4;
+    const addText = (text, x, size, style, rgb, maxW) => {
+      doc.setFontSize(size);
+      doc.setFont("helvetica", style || "normal");
+      doc.setTextColor(...rgb);
+      const lines = doc.splitTextToSize(String(text), maxW || (cw - (x - margin)));
+      checkPage(lines.length * size * 0.42);
+      doc.text(lines, x, y);
+      y += lines.length * size * 0.42 + 1;
+    };
+
+    // Header bar
+    doc.setFillColor(26, 69, 53);
+    doc.rect(0, 0, pageW, 34, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(17);
+    doc.setTextColor(254, 244, 238);
+    doc.text("Zielgruppenumfrage", margin, 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(229, 207, 211);
+    const themaLines = doc.splitTextToSize(thema, cw - 10);
+    doc.text(themaLines, margin, 23);
+
+    y = 44;
+
+    // Separator
     doc.setDrawColor(189, 136, 146);
-    doc.setLineWidth(0.5);
-    doc.line(margin, y, 190, y);
-    y += 7;
+    doc.setLineWidth(0.4);
+    doc.line(margin, y, pageW - margin, y);
+    y += 8;
 
     result.questions?.forEach(q => {
+      // Midpoint
       if (q.number === result.midpoint_after + 1) {
         y += 3;
+        checkPage(16);
         doc.setDrawColor(229, 207, 211);
-        doc.line(margin, y, 190, y);
-        y += 5;
-        txt(result.midpoint_text, margin, 9, "bold", [189, 136, 146]);
-        y += 4;
+        doc.setLineWidth(0.3);
+        doc.line(margin, y, pageW - margin, y);
+        y += 6;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(189, 136, 146);
+        const mw = doc.getTextWidth(result.midpoint_text);
+        doc.text(result.midpoint_text, (pageW - mw) / 2, y);
+        y += 9;
       }
-      txt(`Frage ${q.number}: ${q.text}`, margin, 11, "bold", [26, 26, 26]);
-      y += 1;
+
+      checkPage(20);
+
+      // Number badge
+      doc.setFillColor(26, 69, 53);
+      doc.roundedRect(margin, y - 4.5, 7, 5.5, 0.8, 0.8, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(7);
+      doc.setTextColor(254, 244, 238);
+      doc.text(String(q.number), margin + 3.5, y - 0.3, { align: "center" });
+
+      // Question text
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(26, 26, 26);
+      const qLines = doc.splitTextToSize(q.text, cw - 12);
+      checkPage(qLines.length * 4.8 + 4);
+      doc.text(qLines, margin + 10, y);
+      y += qLines.length * 4.8 + 3;
+
       if (q.type === "multiple_choice" && q.options) {
-        q.options.forEach(o => txt(`\u25A1  ${o}`, margin + 5, 10, "normal", [80, 80, 80]));
+        q.options.forEach(opt => {
+          checkPage(8);
+          // Drawn circle instead of Unicode
+          doc.setDrawColor(189, 136, 146);
+          doc.setLineWidth(0.5);
+          doc.circle(margin + 3.5, y - 1.5, 2, "S");
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(10);
+          doc.setTextColor(70, 70, 70);
+          const optLines = doc.splitTextToSize(opt, cw - 14);
+          doc.text(optLines, margin + 8, y);
+          y += optLines.length * 4.2 + 2;
+        });
       } else {
+        checkPage(16);
         doc.setFillColor(254, 244, 238);
-        doc.setDrawColor(229, 207, 211);
-        if (y + 14 > 282) { doc.addPage(); y = margin; }
-        doc.rect(margin, y, cw, 14, "FD");
-        y += 17;
+        doc.setDrawColor(222, 200, 204);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(margin, y, cw, 13, 1, 1, "FD");
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(9);
+        doc.setTextColor(190, 190, 190);
+        doc.text("Freie Antwort", margin + 5, y + 7.5);
+        y += 16;
       }
-      y += 4;
+      y += 5;
     });
+
+    // Footer
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(200, 200, 200);
+      doc.text("Launch Sisters · Nahm Consulting GmbH", pageW / 2, 291, { align: "center" });
+    }
 
     doc.save("umfrage-fragen.pdf");
   };
 
-  const openGoogleDoc = () => {
-    navigator.clipboard.writeText(toPlainText()).catch(() => {});
-    window.open("https://docs.google.com/document/create", "_blank");
+  const downloadForGoogleDocs = () => {
+    let html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><style>
+body{font-family:Arial,sans-serif;max-width:680px;margin:40px auto;color:#333;line-height:1.6}
+h1{color:#1a4535;font-size:22px;margin-bottom:4px}
+.thema{color:#888;font-size:13px;margin-bottom:24px}
+hr{border:none;border-top:1px solid #e5cfd3;margin:20px 0}
+.q{margin:0 0 20px}
+.q-label{font-weight:bold;font-size:14px;color:#1a1a1a;margin-bottom:8px}
+.option{margin:5px 0 5px 16px;color:#555;display:flex;align-items:center;gap:8px}
+.circle{width:12px;height:12px;border:1.5px solid #bd8892;border-radius:50%;flex-shrink:0;display:inline-block}
+.textfield{background:#fef4ee;border:1px dashed #e5cfd3;padding:14px;margin:6px 0;color:#bbb;font-style:italic;border-radius:4px}
+.midpoint{text-align:center;color:#bd8892;font-weight:bold;margin:28px 0;padding:10px;border-top:1px solid #e5cfd3;border-bottom:1px solid #e5cfd3;font-size:13px;letter-spacing:1px}
+.footer{text-align:center;color:#ccc;font-size:11px;margin-top:48px}
+</style></head><body>
+<h1>Zielgruppenumfrage</h1>
+<div class="thema">${thema}</div><hr>`;
+
+    result.questions?.forEach(q => {
+      if (q.number === result.midpoint_after + 1) {
+        html += `<div class="midpoint">${result.midpoint_text}</div>`;
+      }
+      html += `<div class="q"><div class="q-label">Frage ${q.number}: ${q.text}</div>`;
+      if (q.type === "multiple_choice" && q.options) {
+        q.options.forEach(o => {
+          html += `<div class="option"><span class="circle"></span>${o}</div>`;
+        });
+      } else {
+        html += `<div class="textfield">Freie Antwort</div>`;
+      }
+      html += `</div>`;
+    });
+
+    html += `<div class="footer">Launch Sisters · Nahm Consulting GmbH</div></body></html>`;
+
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "umfrage-fragen.html";
+    a.click();
+    URL.revokeObjectURL(url);
     setGdocNotice(true);
-    setTimeout(() => setGdocNotice(false), 6000);
+    setTimeout(() => setGdocNotice(false), 8000);
   };
 
   const reset = () => { setResult(null); setStep("form"); setErr(""); setGdocNotice(false); };
@@ -597,7 +704,7 @@ export default function App() {
 
               {gdocNotice && (
                 <div className="gdoc-notice">
-                  ✓ Text kopiert. Google Doc wurde geöffnet. Füge den Text mit Strg+V (Mac: Cmd+V) ein.
+                  ✓ HTML-Datei heruntergeladen. In Google Drive hochladen → Rechtsklick → "Öffnen mit Google Docs".
                 </div>
               )}
 
@@ -607,7 +714,7 @@ export default function App() {
                 </button>
                 <button className="btn-pdf" onClick={exportPDF}>↓ Als PDF</button>
                 <div className="export-divider" />
-                <button className="btn-gdoc" onClick={openGoogleDoc}>Google Doc erstellen ↗</button>
+                <button className="btn-gdoc" onClick={downloadForGoogleDocs}>Google Doc herunterladen ↓</button>
               </div>
 
               <div className="q-list">
