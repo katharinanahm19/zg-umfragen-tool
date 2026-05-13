@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
 const C = {
   dunkelgruen: "#1a4535",
   hellgruen: "#4e9c61",
@@ -410,7 +412,8 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState(false);
-  const [gdocNotice, setGdocNotice] = useState(false);
+  const [gdocLoading, setGdocLoading] = useState(false);
+  const [gdocNotice, setGdocNotice] = useState("");
 
   useEffect(() => {
     const s = document.createElement("script");
@@ -589,52 +592,109 @@ export default function App() {
     doc.save("umfrage-fragen.pdf");
   };
 
-  const downloadForGoogleDocs = () => {
-    let html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><style>
-body{font-family:Arial,sans-serif;max-width:680px;margin:40px auto;color:#333;line-height:1.6}
-h1{color:#1a4535;font-size:22px;margin-bottom:4px}
-.thema{color:#888;font-size:13px;margin-bottom:24px}
-hr{border:none;border-top:1px solid #e5cfd3;margin:20px 0}
-.q{margin:0 0 20px}
-.q-label{font-weight:bold;font-size:14px;color:#1a1a1a;margin-bottom:8px}
-.option{margin:5px 0 5px 16px;color:#555;display:flex;align-items:center;gap:8px}
-.circle{width:12px;height:12px;border:1.5px solid #bd8892;border-radius:50%;flex-shrink:0;display:inline-block}
-.textfield{background:#fef4ee;border:1px dashed #e5cfd3;padding:14px;margin:6px 0;color:#bbb;font-style:italic;border-radius:4px}
-.midpoint{text-align:center;color:#bd8892;font-weight:bold;margin:28px 0;padding:10px;border-top:1px solid #e5cfd3;border-bottom:1px solid #e5cfd3;font-size:13px;letter-spacing:1px}
-.footer{text-align:center;color:#ccc;font-size:11px;margin-top:48px}
-</style></head><body>
-<h1>Zielgruppenumfrage</h1>
-<div class="thema">${thema}</div><hr>`;
+  const createGoogleDoc = () => {
+    if (!GOOGLE_CLIENT_ID || !window.google?.accounts?.oauth2) {
+      setGdocNotice("Google Client ID fehlt. Bitte in Netlify als VITE_GOOGLE_CLIENT_ID eintragen.");
+      return;
+    }
 
-    result.questions?.forEach(q => {
-      if (q.number === result.midpoint_after + 1) {
-        html += `<div class="midpoint">${result.midpoint_text}</div>`;
-      }
-      html += `<div class="q"><div class="q-label">Frage ${q.number}: ${q.text}</div>`;
-      if (q.type === "multiple_choice" && q.options) {
-        q.options.forEach(o => {
-          html += `<div class="option"><span class="circle"></span>${o}</div>`;
-        });
-      } else {
-        html += `<div class="textfield">Freie Antwort</div>`;
-      }
-      html += `</div>`;
+    setGdocLoading(true);
+    setGdocNotice("");
+
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: "https://www.googleapis.com/auth/documents",
+      callback: async (tokenResponse) => {
+        if (tokenResponse.error) {
+          setGdocLoading(false);
+          setGdocNotice("Anmeldung fehlgeschlagen. Bitte erneut versuchen.");
+          return;
+        }
+
+        try {
+          const token = tokenResponse.access_token;
+
+          // 1. Dokument erstellen
+          const createRes = await fetch("https://docs.googleapis.com/v1/documents", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ title: `Zielgruppenumfrage: ${thema.slice(0, 60)}` }),
+          });
+          const docData = await createRes.json();
+          const docId = docData.documentId;
+
+          // 2. Inhalt aufbauen + Indizes tracken
+          const insertReqs = [];
+          const fmtReqs = [];
+          let idx = 1;
+
+          const ins = (text) => {
+            insertReqs.push({ insertText: { location: { index: idx }, text } });
+            const start = idx;
+            idx += text.length;
+            return { start, end: idx };
+          };
+
+          const titleRange = ins("Zielgruppenumfrage\n");
+          ins(`${thema}\n\n`);
+
+          result.questions?.forEach((q) => {
+            if (q.number === result.midpoint_after + 1) {
+              ins(`\u2015  ${result.midpoint_text}  \u2015\n\n`);
+            }
+            const qRange = ins(`Frage ${q.number}: ${q.text}\n`);
+            fmtReqs.push({
+              updateTextStyle: {
+                range: { startIndex: qRange.start, endIndex: qRange.end - 1 },
+                textStyle: { bold: true },
+                fields: "bold",
+              },
+            });
+            if (q.type === "multiple_choice" && q.options) {
+              q.options.forEach((o) => ins(`   \u25cb  ${o}\n`));
+            } else {
+              ins("[Freie Antwort]\n");
+            }
+            ins("\n");
+          });
+
+          ins("Launch Sisters \u00b7 Nahm Consulting GmbH");
+
+          // Titel formatieren
+          fmtReqs.push({
+            updateTextStyle: {
+              range: { startIndex: titleRange.start, endIndex: titleRange.end - 1 },
+              textStyle: {
+                bold: true,
+                fontSize: { magnitude: 18, unit: "PT" },
+                foregroundColor: { color: { rgbColor: { red: 0.102, green: 0.271, blue: 0.208 } } },
+              },
+              fields: "bold,fontSize,foregroundColor",
+            },
+          });
+
+          // 3. batchUpdate: erst Text einfügen, dann formatieren
+          await fetch(`https://docs.googleapis.com/v1/documents/${docId}:batchUpdate`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ requests: [...insertReqs, ...fmtReqs] }),
+          });
+
+          // 4. Dokument öffnen
+          window.open(`https://docs.google.com/document/d/${docId}/edit`, "_blank");
+          setGdocNotice("success");
+        } catch {
+          setGdocNotice("Fehler beim Erstellen des Dokuments. Bitte erneut versuchen.");
+        } finally {
+          setGdocLoading(false);
+        }
+      },
     });
 
-    html += `<div class="footer">Launch Sisters · Nahm Consulting GmbH</div></body></html>`;
-
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "umfrage-fragen.html";
-    a.click();
-    URL.revokeObjectURL(url);
-    setGdocNotice(true);
-    setTimeout(() => setGdocNotice(false), 8000);
+    tokenClient.requestAccessToken();
   };
 
-  const reset = () => { setResult(null); setStep("form"); setErr(""); setGdocNotice(false); };
+  const reset = () => { setResult(null); setStep("form"); setErr(""); setGdocNotice(""); };
 
   return (
     <>
@@ -702,9 +762,14 @@ hr{border:none;border-top:1px solid #e5cfd3;margin:20px 0}
                 <button className="btn-reset" onClick={reset}>↩ Neu erstellen</button>
               </div>
 
-              {gdocNotice && (
+              {gdocNotice === "success" && (
                 <div className="gdoc-notice">
-                  ✓ HTML-Datei heruntergeladen. In Google Drive hochladen → Rechtsklick → "Öffnen mit Google Docs".
+                  ✓ Google Doc wurde erstellt und geöffnet.
+                </div>
+              )}
+              {gdocNotice && gdocNotice !== "success" && (
+                <div className="gdoc-notice" style={{ borderColor: "#f5c6c6", background: "#fdf0f0", color: "#c0392b" }}>
+                  ⚠ {gdocNotice}
                 </div>
               )}
 
@@ -713,8 +778,6 @@ hr{border:none;border-top:1px solid #e5cfd3;margin:20px 0}
                   {copied ? "✓ Kopiert" : "↓ Text kopieren"}
                 </button>
                 <button className="btn-pdf" onClick={exportPDF}>↓ Als PDF</button>
-                <div className="export-divider" />
-                <button className="btn-gdoc" onClick={downloadForGoogleDocs}>Google Doc herunterladen ↓</button>
               </div>
 
               <div className="q-list">
