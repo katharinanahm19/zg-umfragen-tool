@@ -1,7 +1,5 @@
 import { useState, useEffect } from "react";
 
-const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY;
-
 const C = {
   dunkelgruen: "#1a4535",
   hellgruen: "#4e9c61",
@@ -405,32 +403,6 @@ const css = `
   }
 `;
 
-const SYSTEM = `Du bist eine Expertin für Zielgruppenumfragen im Online-Business.
-
-Erstelle genau 10 spezifische Umfrage-Fragen für eine Zielgruppenumfrage. Alle Fragen müssen präzise auf das Thema des Online-Programms und die Zielgruppe zugeschnitten sein.
-
-Halte dich an diese Reihenfolge:
-1. "Wie hast du von mir erfahren?" – Multiple Choice: Instagram, Facebook, YouTube, Empfehlung, Andere
-2. Aktuelle Situation: Woran arbeitest du gerade / was ist dein nächstes Ziel? – Multiple Choice mit 4-5 themenspezifischen Stufen
-3. Größte Herausforderung dabei? – offenes Textfeld
-4. Welche Bereiche des Themas sind dir am wichtigsten? – Multiple Choice, 4 spezifische Optionen
-5. Was passt besser zu dir? – Multiple Choice: intensive persönliche Begleitung ODER eigenständig durch Material
-6. Was war der Moment, in dem du gemerkt hast, dass du [themenspezifisch] brauchst? – offenes Textfeld
-7. Was MUSS in einem perfekten Programm für dich unbedingt drin sein? – offenes Textfeld
-8. Willst du sonst noch etwas loswerden? Kritik, Lob, Anregungen? – offenes Textfeld
-9. Hättest du Lust auf ein kurzes Zoom-Gespräch? – Multiple Choice: Ja / Nein
-10. Falls du am Gewinnspiel teilnehmen willst, hinterlasse deine E-Mail-Adresse hier – offenes Textfeld
-
-Antworte NUR mit validem JSON ohne Backticks oder Präambel:
-{
-  "questions": [
-    {"number": 1, "text": "Fragetext", "type": "multiple_choice", "options": ["Option 1", "Option 2"]},
-    {"number": 2, "text": "Fragetext", "type": "open_text"}
-  ],
-  "midpoint_after": 5,
-  "midpoint_text": "Motivierender Zwischentitel"
-}`;
-
 export default function App() {
   const [step, setStep] = useState("form");
   const [thema, setThema] = useState("");
@@ -451,30 +423,14 @@ export default function App() {
       setErr("Bitte fülle beide Felder aus.");
       return;
     }
-    if (!API_KEY) {
-      setErr("API-Key fehlt. Bitte VITE_ANTHROPIC_API_KEY in .env eintragen.");
-      return;
-    }
     setErr("");
     setStep("loading");
 
-    const msg = `Online-Programm Thema: ${thema}\nZielgruppe: ${zielgruppe}`;
-
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": API_KEY,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-calls": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 2000,
-          system: SYSTEM,
-          messages: [{ role: "user", content: msg }],
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ thema, zielgruppe }),
       });
       const data = await res.json();
       if (data.error) throw new Error(data.error.message);
