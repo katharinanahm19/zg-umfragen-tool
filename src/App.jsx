@@ -2,6 +2,29 @@ import { useState, useEffect } from "react";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
+const CHECKLIST_GREEN = [
+  "Instagram Story mit Umfragelink",
+  "Instagram Post",
+  "Instagram Bio",
+  "WhatsApp Status und Direktnachrichten",
+  "Facebook Gruppen (thematisch passend)",
+  "Facebook Profil: „Ich arbeite an etwas Neuem und brauche kurz deine Hilfe…"",
+  "Im persönlichen Umfeld gezielt fragen („Kennst du jemanden, der…")",
+  "DMs an Follower bei Insta/LinkedIn/Facebook",
+  "Circle (Launch Sisters)",
+];
+
+const CHECKLIST_YELLOW = [
+  "Newsletter (falls schon vorhanden)",
+  "Umfrage über das Freebie einbinden",
+  "Einbindung auf der eigenen Website (Pop-Up, Sidebar, Blogartikel etc.)",
+  "Podcast Interviews",
+  "Netzwerk-Events",
+  "Nachrichten bei LinkedIn",
+  "Kooperationen",
+  "Bestehende Kundinnen bitten, die Umfrage in ihrem Netzwerk zu teilen",
+];
+
 const C = {
   dunkelgruen: "#1a4535",
   hellgruen: "#4e9c61",
@@ -397,6 +420,89 @@ const css = `
     letter-spacing: 0.5px;
   }
 
+  .cl-section {
+    margin-top: 28px;
+    background: ${C.white};
+    border-radius: 12px;
+    border: 1px solid ${C.hellrosa}66;
+    overflow: hidden;
+  }
+  .cl-header {
+    background: ${C.dunkelgruen};
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .cl-header-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: ${C.beige};
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .cl-header-sub {
+    font-size: 11px;
+    color: ${C.hellrosa};
+    letter-spacing: 0.5px;
+  }
+  .cl-body { padding: 20px; }
+  .cl-group { margin-bottom: 20px; }
+  .cl-group:last-child { margin-bottom: 0; }
+  .cl-group-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cl-group-label.green { color: #2d7a4f; }
+  .cl-group-label.yellow { color: #b08000; }
+  .cl-group-label::after { content: ''; flex: 1; height: 1px; background: ${C.hellrosa}; }
+  .cl-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 0;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .cl-item:hover { background: ${C.beige}; padding-left: 6px; margin-left: -6px; }
+  .cl-box {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    transition: all 0.15s;
+  }
+  .cl-box.green-box { border: 2px solid #4e9c61; color: ${C.white}; }
+  .cl-box.green-box.checked { background: #4e9c61; }
+  .cl-box.yellow-box { border: 2px solid #c9a227; color: ${C.white}; }
+  .cl-box.yellow-box.checked { background: #c9a227; }
+  .cl-text {
+    font-size: 13px;
+    color: #444;
+    line-height: 1.5;
+    transition: all 0.15s;
+  }
+  .cl-text.checked { text-decoration: line-through; color: #aaa; }
+  .cl-progress {
+    font-size: 11px;
+    color: ${C.hellgruen};
+    font-weight: 700;
+  }
+
   @media (max-width: 520px) {
     .topbar { padding: 16px 20px; }
     .body { padding: 24px 16px; }
@@ -412,6 +518,7 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState(false);
+  const [checked, setChecked] = useState({});
   const [gdocLoading, setGdocLoading] = useState(false);
   const [gdocNotice, setGdocNotice] = useState("");
 
@@ -579,7 +686,7 @@ export default function App() {
       y += 5;
     });
 
-    // Footer
+    // Footer on questions pages
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -588,6 +695,65 @@ export default function App() {
       doc.setTextColor(200, 200, 200);
       doc.text("Launch Sisters · Nahm Consulting GmbH", pageW / 2, 291, { align: "center" });
     }
+
+    // Checklist page
+    doc.addPage();
+    y = 0;
+
+    doc.setFillColor(26, 69, 53);
+    doc.rect(0, 0, pageW, 34, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(17);
+    doc.setTextColor(254, 244, 238);
+    doc.text("So teilst du deine Umfrage", margin, 14);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(229, 207, 211);
+    doc.text("Checkliste zur Verbreitung", margin, 23);
+
+    y = 46;
+
+    const drawCheckItem = (text, colorRgb) => {
+      if (y + 10 > 282) { doc.addPage(); y = margin; }
+      doc.setDrawColor(...colorRgb);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(margin, y - 4, 5, 5, 0.5, 0.5, "S");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      const lines = doc.splitTextToSize(text, cw - 12);
+      doc.text(lines, margin + 8, y);
+      y += lines.length * 4.5 + 2;
+    };
+
+    // Green group
+    doc.setFillColor(78, 156, 97);
+    doc.roundedRect(margin, y - 3, cw, 7, 1, 1, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text("BITTE ALLES UMSETZEN", margin + 4, y + 1.5);
+    y += 11;
+
+    CHECKLIST_GREEN.forEach(item => drawCheckItem(item, [78, 156, 97]));
+
+    y += 6;
+
+    // Yellow group
+    doc.setFillColor(201, 162, 39);
+    doc.roundedRect(margin, y - 3, cw, 7, 1, 1, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(255, 255, 255);
+    doc.text("OPTIONAL", margin + 4, y + 1.5);
+    y += 11;
+
+    CHECKLIST_YELLOW.forEach(item => drawCheckItem(item, [201, 162, 39]));
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(200, 200, 200);
+    doc.text("Launch Sisters · Nahm Consulting GmbH", pageW / 2, 291, { align: "center" });
 
     doc.save("umfrage-fragen.pdf");
   };
@@ -694,7 +860,11 @@ export default function App() {
     tokenClient.requestAccessToken();
   };
 
-  const reset = () => { setResult(null); setStep("form"); setErr(""); setGdocNotice(""); };
+  const toggleCheck = (key) => setChecked(c => ({ ...c, [key]: !c[key] }));
+  const checkedCount = Object.values(checked).filter(Boolean).length;
+  const totalItems = CHECKLIST_GREEN.length + CHECKLIST_YELLOW.length;
+
+  const reset = () => { setResult(null); setStep("form"); setErr(""); setGdocNotice(""); setChecked({}); };
 
   return (
     <>
@@ -807,6 +977,45 @@ export default function App() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              <div className="cl-section">
+                <div className="cl-header">
+                  <div className="cl-header-title">So teilst du deine Umfrage</div>
+                  {checkedCount > 0 && (
+                    <div className="cl-progress">{checkedCount} / {totalItems} erledigt</div>
+                  )}
+                </div>
+                <div className="cl-body">
+                  <div className="cl-group">
+                    <div className="cl-group-label green">Bitte alles umsetzen</div>
+                    {CHECKLIST_GREEN.map((item, i) => {
+                      const key = `g${i}`;
+                      return (
+                        <div key={key} className="cl-item" onClick={() => toggleCheck(key)}>
+                          <div className={`cl-box green-box${checked[key] ? " checked" : ""}`}>
+                            {checked[key] ? "✓" : ""}
+                          </div>
+                          <span className={`cl-text${checked[key] ? " checked" : ""}`}>{item}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="cl-group">
+                    <div className="cl-group-label yellow">Optional</div>
+                    {CHECKLIST_YELLOW.map((item, i) => {
+                      const key = `y${i}`;
+                      return (
+                        <div key={key} className="cl-item" onClick={() => toggleCheck(key)}>
+                          <div className={`cl-box yellow-box${checked[key] ? " checked" : ""}`}>
+                            {checked[key] ? "✓" : ""}
+                          </div>
+                          <span className={`cl-text${checked[key] ? " checked" : ""}`}>{item}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </>
           )}
