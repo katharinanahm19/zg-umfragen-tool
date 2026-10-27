@@ -382,6 +382,30 @@ const css = `
     border-radius: 50%;
     flex-shrink: 0;
   }
+  .intro-box {
+    background: ${C.beige};
+    border: 1px solid #e8d4d8;
+    border-radius: 12px;
+    padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .intro-box p { font-size: 13px; line-height: 1.55; color: #444; margin: 0 0 6px; }
+  .intro-box p:first-child { font-weight: 700; color: ${C.dunkelgruen}; font-size: 15px; }
+  .booking-box {
+    margin-top: 22px;
+    padding-top: 20px;
+    border-top: 1.5px dashed ${C.altrosa};
+  }
+  .booking-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: ${C.altrosa};
+    margin-bottom: 12px;
+  }
+  .booking-cond { font-size: 12px; font-style: italic; color: #999; margin: 10px 0 6px; }
+  .booking-heading { font-size: 14px; font-weight: 700; color: ${C.dunkelgruen}; margin-bottom: 10px; }
 
   .q-textfield {
     background: ${C.beige};
@@ -560,6 +584,7 @@ export default function App() {
   const toPlainText = () => {
     if (!result) return "";
     let t = "";
+    if (result.intro_text) t += `${result.intro_text}\n\n----------\n\n`;
     result.questions.forEach(q => {
       if (q.number === result.midpoint_after + 1) t += `\n${result.midpoint_text}\n\n`;
       t += `Frage ${q.number}: ${q.text}\n`;
@@ -567,6 +592,16 @@ export default function App() {
       else t += "TEXTFELD\n";
       t += "\n";
     });
+    const b = result.booking_flow;
+    if (b) {
+      t += `\n----------\n\n`;
+      if (b.intro) t += `${b.intro}\n\n`;
+      if (b.heading) t += `${b.heading}\n\n`;
+      if (b.confirm_question) t += `${b.confirm_question}\n`;
+      b.confirm_options?.forEach(o => (t += `* ${o}\n`));
+      if (b.fallback_intro) t += `\n${b.fallback_intro}\n`;
+      b.fallback_fields?.forEach(f => (t += `${f}: TEXTFELD\n`));
+    }
     return t.trim();
   };
 
@@ -620,6 +655,19 @@ export default function App() {
     doc.setLineWidth(0.4);
     doc.line(margin, y, pageW - margin, y);
     y += 8;
+
+    // Intro text
+    if (result.intro_text) {
+      String(result.intro_text).split("\n").forEach(line => {
+        if (!line.trim()) { y += 2.5; return; }
+        addText(line, margin, 10, "normal", [70, 70, 70]);
+      });
+      y += 4;
+      doc.setDrawColor(229, 207, 211);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y, pageW - margin, y);
+      y += 8;
+    }
 
     result.questions?.forEach(q => {
       // Midpoint
@@ -685,6 +733,44 @@ export default function App() {
       }
       y += 5;
     });
+
+    // Booking flow
+    const bf = result.booking_flow;
+    if (bf) {
+      y += 2;
+      checkPage(16);
+      doc.setDrawColor(189, 136, 146);
+      doc.setLineWidth(0.4);
+      doc.line(margin, y, pageW - margin, y);
+      y += 8;
+      if (bf.intro) addText(bf.intro, margin, 9, "italic", [150, 150, 150]);
+      if (bf.heading) addText(bf.heading, margin, 11, "bold", [26, 69, 53]);
+      y += 2;
+      if (bf.confirm_question) addText(bf.confirm_question, margin, 11, "bold", [26, 26, 26]);
+      bf.confirm_options?.forEach(opt => {
+        checkPage(8);
+        doc.setDrawColor(189, 136, 146);
+        doc.setLineWidth(0.5);
+        doc.circle(margin + 3.5, y - 1.5, 2, "S");
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(70, 70, 70);
+        doc.text(doc.splitTextToSize(opt, cw - 14), margin + 8, y);
+        y += 6.2;
+      });
+      y += 3;
+      if (bf.fallback_intro) addText(bf.fallback_intro, margin, 10, "normal", [70, 70, 70]);
+      y += 1;
+      bf.fallback_fields?.forEach(f => {
+        checkPage(16);
+        addText(f, margin, 10, "bold", [26, 26, 26]);
+        doc.setFillColor(254, 244, 238);
+        doc.setDrawColor(222, 200, 204);
+        doc.setLineWidth(0.3);
+        doc.roundedRect(margin, y, cw, 11, 1, 1, "FD");
+        y += 15;
+      });
+    }
 
     // Footer on questions pages
     const pageCount = doc.getNumberOfPages();
@@ -804,6 +890,11 @@ export default function App() {
           const titleRange = ins("Zielgruppenumfrage\n");
           ins(`${thema}\n\n`);
 
+          if (result.intro_text) {
+            ins(`${result.intro_text}\n\n`);
+            ins("――――――――――\n\n");
+          }
+
           result.questions?.forEach((q) => {
             if (q.number === result.midpoint_after + 1) {
               ins(`\u2015  ${result.midpoint_text}  \u2015\n\n`);
@@ -823,6 +914,36 @@ export default function App() {
             }
             ins("\n");
           });
+
+          const bf = result.booking_flow;
+          if (bf) {
+            ins("\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\n\n");
+            if (bf.intro) ins(`${bf.intro}\n\n`);
+            if (bf.heading) {
+              const hRange = ins(`${bf.heading}\n\n`);
+              fmtReqs.push({
+                updateTextStyle: {
+                  range: { startIndex: hRange.start, endIndex: hRange.end - 2 },
+                  textStyle: { bold: true },
+                  fields: "bold",
+                },
+              });
+            }
+            if (bf.confirm_question) {
+              const cRange = ins(`${bf.confirm_question}\n`);
+              fmtReqs.push({
+                updateTextStyle: {
+                  range: { startIndex: cRange.start, endIndex: cRange.end - 1 },
+                  textStyle: { bold: true },
+                  fields: "bold",
+                },
+              });
+            }
+            bf.confirm_options?.forEach((o) => ins(`   \u25cb  ${o}\n`));
+            if (bf.fallback_intro) ins(`\n${bf.fallback_intro}\n`);
+            bf.fallback_fields?.forEach((f) => ins(`${f}: [Freie Antwort]\n`));
+            ins("\n");
+          }
 
           ins("Launch Sisters \u00b7 Nahm Consulting GmbH");
 
@@ -881,7 +1002,7 @@ export default function App() {
               <div className="intro">
                 <div className="intro-label">Zielgruppenumfragen</div>
                 <div className="intro-title">Deine Umfrage-Fragen in Sekunden</div>
-                <div className="intro-sub">Gib Thema und Zielgruppe ein. Du bekommst 10 fertige Fragen für deine Zielgruppenumfrage.</div>
+                <div className="intro-sub">Gib Thema und Zielgruppe ein. Du bekommst die komplette Zielgruppenumfrage: Intro-Text, 9 Fragen und den Buchungs-Flow fürs Analysegespräch.</div>
               </div>
 
               <div className="form-card">
@@ -926,7 +1047,7 @@ export default function App() {
             <>
               <div className="result-header">
                 <div>
-                  <div className="result-title">Deine 10 Umfrage-Fragen</div>
+                  <div className="result-title">Deine Zielgruppenumfrage</div>
                   <div className="result-meta">Thema: {thema.slice(0, 60)}{thema.length > 60 ? "…" : ""}</div>
                 </div>
                 <button className="btn-reset" onClick={reset}>↩ Neu erstellen</button>
@@ -949,6 +1070,14 @@ export default function App() {
                 </button>
                 <button className="btn-pdf" onClick={exportPDF}>↓ Als PDF</button>
               </div>
+
+              {result.intro_text && (
+                <div className="intro-box">
+                  {String(result.intro_text).split("\n").map((line, i) =>
+                    line.trim() ? <p key={i}>{line}</p> : <div key={i} style={{ height: 6 }} />
+                  )}
+                </div>
+              )}
 
               <div className="q-list">
                 {result.questions?.map((q) => (
@@ -978,6 +1107,37 @@ export default function App() {
                   </div>
                 ))}
               </div>
+
+              {result.booking_flow && (
+                <div className="booking-box">
+                  <div className="booking-label">Nach dem Abschicken</div>
+                  {result.booking_flow.intro && (
+                    <div className="booking-cond">{result.booking_flow.intro}</div>
+                  )}
+                  {result.booking_flow.heading && (
+                    <div className="booking-heading">{result.booking_flow.heading}</div>
+                  )}
+                  {result.booking_flow.confirm_question && (
+                    <div className="q-card">
+                      <div className="q-text">{result.booking_flow.confirm_question}</div>
+                      <ul className="q-options">
+                        {result.booking_flow.confirm_options?.map((o, i) => (
+                          <li key={i}><div className="q-radio" /> {o}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {result.booking_flow.fallback_intro && (
+                    <div className="booking-cond">{result.booking_flow.fallback_intro}</div>
+                  )}
+                  {result.booking_flow.fallback_fields?.map((f, i) => (
+                    <div className="q-card" key={i}>
+                      <div className="q-text">{f}</div>
+                      <div className="q-textfield">Freie Antwort der Teilnehmerin</div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className="cl-section">
                 <div className="cl-header">

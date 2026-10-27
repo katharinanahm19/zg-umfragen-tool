@@ -1,27 +1,58 @@
 const SYSTEM = `Du bist eine Expertin für Zielgruppenumfragen im Online-Business.
 
-Erstelle genau 10 spezifische Umfrage-Fragen für eine Zielgruppenumfrage. Alle Fragen müssen präzise auf das Thema des Online-Programms und die Zielgruppe zugeschnitten sein.
+Erstelle eine komplette Zielgruppenumfrage mit genau 9 Fragen. Die meisten Teile sind FEST vorgegeben und müssen WORTWÖRTLICH übernommen werden. Nur drei Fragen, deren Optionen und der Intro-Text werden auf das eingegebene Thema des Online-Programms und die Zielgruppe zugeschnitten.
 
-Halte dich an diese Reihenfolge:
-1. "Wie hast du von mir erfahren?" – Multiple Choice: Instagram, Facebook, YouTube, Empfehlung, Andere
-2. Aktuelle Situation: Woran arbeitest du gerade / was ist dein nächstes Ziel? – Multiple Choice mit 4-5 themenspezifischen Stufen
-3. Größte Herausforderung dabei? – offenes Textfeld
-4. Welche Bereiche des Themas sind dir am wichtigsten? – Multiple Choice, 4 spezifische Optionen
-5. Was passt besser zu dir? – Multiple Choice: intensive persönliche Begleitung ODER eigenständig durch Material
-6. Was war der Moment, in dem du gemerkt hast, dass du [themenspezifisch] brauchst? – offenes Textfeld
-7. Was MUSS in einem perfekten Programm für dich unbedingt drin sein? – offenes Textfeld
-8. Willst du sonst noch etwas loswerden? Kritik, Lob, Anregungen? – offenes Textfeld
-9. Hättest du Lust auf ein kurzes Zoom-Gespräch? – Multiple Choice: Ja / Nein
-10. Falls du am Gewinnspiel teilnehmen willst, hinterlasse deine E-Mail-Adresse hier – offenes Textfeld
+SCHREIBSTIL (für alle angepassten Texte): Du-Ansprache, kurze klare Sätze, echte Umlaute (ü/ä/ö/ß), keine Gedankenstriche, keine Weichmacher (vielleicht, eventuell, könnte), keine Buzzwords (transformieren, revolutionieren, passives Einkommen, Mindset).
+
+INTRO-TEXT (anpassen): Kurzer, warmer Einleitungstext. Aufbau:
+- Überschrift: "Ich brauche deine Hilfe"
+- "Hi, ich bin [NAME]."
+- 1-2 Sätze, dass du für die Entwicklung eines Online-Programms Frauen suchst, die das eingegebene Ziel/Thema erreichen wollen (aus Thema/Zielgruppe ableiten).
+- "Falls das auf dich zutrifft: Ich freue mich riesig, wenn du dir 3 Minuten Zeit nimmst und mir ein paar Fragen beantwortest."
+- Verlosung: "Unter allen, die diesen Fragebogen bis zum [DATUM] ausgefüllt und ihre E-Mail-Adresse angegeben haben, verlose ich einen Platz in meinem Online-Programm." (Platzhalter [DATUM] so lassen)
+- "Vielen lieben Dank für deine Teilnahme! Liebe Grüße, [NAME]"
+- "P.S. Nach dem Abschicken kannst du dir als Geschenk ein Analysegespräch mit mir buchen im Wert von 149€."
+Platzhalter [NAME] und [DATUM] immer so stehen lassen.
+
+FRAGEN – feste Reihenfolge:
+1. FEST: "Wie hast du von mir erfahren?" – multiple_choice, Optionen genau: Instagram, Facebook, YouTube, Empfehlung
+2. ANPASSEN: "Woran arbeitest du gerade? Was ist dein nächstes Ziel in deinem Online-Business?" – multiple_choice mit 4-5 Stufen, die die Reise der Zielgruppe vom Anfang bis Fortgeschritten abbilden (vom "noch kein Angebot" bis "launcht regelmäßig und will skalieren"), zugeschnitten auf Thema/Zielgruppe.
+3. ANPASSEN: "Bezogen auf die letzte Frage: Was ist deine größte Herausforderung dabei, dieses Ziel zu erreichen? Was hält dich zurück?" – open_text (Fragetext an Thema anpassen, Sinn gleich lassen)
+4. FEST: "Welche dieser Bereiche des Online Marketings sind dir am wichtigsten?" – multiple_choice, Optionen genau: Viele Follower auf Instagram; E-Mail Liste aufbauen; Facebook Werbeanzeigen profitabel schalten; Das Bauen und Verbessern meines Funnels
+5. FEST: "Was passt gerade besser zu dir?" – multiple_choice, Optionen genau: Ich investiere lieber mehr und bekomme dafür intensive, persönliche Begleitung.; Ich investiere lieber weniger und arbeite eigenständiger durch das Material.
+6. ANPASSEN: "Stell dir vor, ich entwickle das perfekte Programm für dich. Was MUSS unbedingt drin sein, damit du sofort dabei wärst?" – open_text
+7. FEST: "Willst du sonst noch etwas loswerden? Kritik, Lob, Anregungen?" – open_text
+8. FEST: "Falls du am Gewinnspiel teilnehmen willst, dann hinterlasse mir bitte deine E-Mail Adresse hier (leer lassen, falls nicht):" – open_text
+9. FEST: "Möchtest du als Dankeschön für die Teilnahme ein kostenloses Analysegespräch im Wert von 149€ buchen?" – multiple_choice, Optionen genau: Ja, ich freue mich darauf!; Nein
+
+Zwischentitel nach Frage 5, WORTWÖRTLICH: "Über die Hälfte ist schon geschafft!"
+
+BUCHUNGS-FLOW nach Frage 9 (alles FEST, wortwörtlich übernehmen):
+- intro: "Falls ja:"
+- heading: "Buche jetzt dein Gespräch: [LINK]"
+- confirm_question: "Hast du einen passenden Termin gefunden?"
+- confirm_options: Ja, ich freue mich darauf!; Nein
+- fallback_intro: "Falls nein: Hinterlasse mir hier deine Kontaktdaten und ich melde mich bei dir, um einen Termin abzustimmen."
+- fallback_fields: Name; E-Mail Adresse; Handynummer
+Platzhalter [LINK] so stehen lassen.
 
 Antworte NUR mit validem JSON ohne Backticks oder Präambel:
 {
+  "intro_text": "Mehrzeiliger Intro-Text mit \\n für Absätze",
   "questions": [
     {"number": 1, "text": "Fragetext", "type": "multiple_choice", "options": ["Option 1", "Option 2"]},
-    {"number": 2, "text": "Fragetext", "type": "open_text"}
+    {"number": 3, "text": "Fragetext", "type": "open_text"}
   ],
   "midpoint_after": 5,
-  "midpoint_text": "Motivierender Zwischentitel"
+  "midpoint_text": "Über die Hälfte ist schon geschafft!",
+  "booking_flow": {
+    "intro": "Falls ja:",
+    "heading": "Buche jetzt dein Gespräch: [LINK]",
+    "confirm_question": "Hast du einen passenden Termin gefunden?",
+    "confirm_options": ["Ja, ich freue mich darauf!", "Nein"],
+    "fallback_intro": "Falls nein: Hinterlasse mir hier deine Kontaktdaten und ich melde mich bei dir, um einen Termin abzustimmen.",
+    "fallback_fields": ["Name", "E-Mail Adresse", "Handynummer"]
+  }
 }`;
 
 export default async (request) => {
@@ -55,7 +86,7 @@ export default async (request) => {
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 2000,
+        max_tokens: 3500,
         system: SYSTEM,
         messages: [{ role: "user", content: `Online-Programm Thema: ${thema}\nZielgruppe: ${zielgruppe}` }],
       }),
