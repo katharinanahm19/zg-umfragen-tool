@@ -406,6 +406,27 @@ const css = `
   }
   .booking-cond { font-size: 12px; font-style: italic; color: #999; margin: 10px 0 6px; }
   .booking-heading { font-size: 14px; font-weight: 700; color: ${C.dunkelgruen}; margin-bottom: 10px; }
+  .section-label {
+    display: inline-block;
+    background: ${C.dunkelgruen};
+    color: ${C.beige};
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 12px;
+    border-radius: 6px;
+    margin: 4px 0 14px;
+  }
+  .section-block { margin-top: 24px; padding-top: 18px; border-top: 1.5px dashed ${C.altrosa}; }
+  .branch-note {
+    font-size: 12px;
+    font-style: italic;
+    color: #999;
+    margin: 10px 0 4px;
+    padding-left: 2px;
+  }
+  .branch-note div { margin: 2px 0; }
 
   .q-textfield {
     background: ${C.beige};
@@ -584,7 +605,8 @@ export default function App() {
   const toPlainText = () => {
     if (!result) return "";
     let t = "";
-    if (result.intro_text) t += `${result.intro_text}\n\n----------\n\n`;
+    if (result.intro_text) t += `${result.intro_text}\n\n==========\n\n`;
+    t += `ABSCHNITT 1\n\n`;
     result.questions.forEach(q => {
       if (q.number === result.midpoint_after + 1) t += `\n${result.midpoint_text}\n\n`;
       t += `Frage ${q.number}: ${q.text}\n`;
@@ -592,15 +614,22 @@ export default function App() {
       else t += "TEXTFELD\n";
       t += "\n";
     });
-    const b = result.booking_flow;
-    if (b) {
-      t += `\n----------\n\n`;
-      if (b.intro) t += `${b.intro}\n\n`;
-      if (b.heading) t += `${b.heading}\n\n`;
-      if (b.confirm_question) t += `${b.confirm_question}\n`;
-      b.confirm_options?.forEach(o => (t += `* ${o}\n`));
-      if (b.fallback_intro) t += `\n${b.fallback_intro}\n`;
-      b.fallback_fields?.forEach(f => (t += `${f}: TEXTFELD\n`));
+    if (result.q9_if_no) t += `${result.q9_if_no}\n`;
+    if (result.q9_if_yes) t += `${result.q9_if_yes}\n`;
+    const s2 = result.section2;
+    if (s2) {
+      t += `\n==========\n\nABSCHNITT 2\n\n`;
+      if (s2.heading) t += `${s2.heading}\n\n`;
+      if (s2.confirm_question) t += `${s2.confirm_question}\n`;
+      s2.confirm_options?.forEach(o => (t += `* ${o}\n`));
+      if (s2.if_yes) t += `\n${s2.if_yes}\n`;
+      if (s2.if_no) t += `${s2.if_no}\n`;
+    }
+    const s3 = result.section3;
+    if (s3) {
+      t += `\n==========\n\nABSCHNITT 3\n\n`;
+      if (s3.intro) t += `${s3.intro}\n\n`;
+      s3.fields?.forEach(f => (t += `${f}: TEXTFELD\n`));
     }
     return t.trim();
   };
@@ -669,6 +698,20 @@ export default function App() {
       y += 8;
     }
 
+    const sectionBar = (label) => {
+      y += 7;
+      checkPage(14);
+      doc.setFillColor(26, 69, 53);
+      doc.roundedRect(margin, y - 4, cw, 7, 1, 1, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(label, margin + 4, y + 1);
+      y += 12;
+    };
+
+    sectionBar("ABSCHNITT 1");
+
     result.questions?.forEach(q => {
       // Midpoint
       if (q.number === result.midpoint_after + 1) {
@@ -734,20 +777,19 @@ export default function App() {
       y += 5;
     });
 
-    // Booking flow
-    const bf = result.booking_flow;
-    if (bf) {
+    // Abschnitt 1 Ende: Verzweigung nach Frage 9
+    y += 2;
+    if (result.q9_if_no) addText(result.q9_if_no, margin, 9, "italic", [150, 150, 150]);
+    if (result.q9_if_yes) addText(result.q9_if_yes, margin, 9, "italic", [150, 150, 150]);
+
+    // Abschnitt 2
+    const s2 = result.section2;
+    if (s2) {
+      sectionBar("ABSCHNITT 2");
+      if (s2.heading) addText(s2.heading, margin, 11, "bold", [26, 69, 53]);
       y += 2;
-      checkPage(16);
-      doc.setDrawColor(189, 136, 146);
-      doc.setLineWidth(0.4);
-      doc.line(margin, y, pageW - margin, y);
-      y += 8;
-      if (bf.intro) addText(bf.intro, margin, 9, "italic", [150, 150, 150]);
-      if (bf.heading) addText(bf.heading, margin, 11, "bold", [26, 69, 53]);
-      y += 2;
-      if (bf.confirm_question) addText(bf.confirm_question, margin, 11, "bold", [26, 26, 26]);
-      bf.confirm_options?.forEach(opt => {
+      if (s2.confirm_question) addText(s2.confirm_question, margin, 11, "bold", [26, 26, 26]);
+      s2.confirm_options?.forEach(opt => {
         checkPage(8);
         doc.setDrawColor(189, 136, 146);
         doc.setLineWidth(0.5);
@@ -758,10 +800,18 @@ export default function App() {
         doc.text(doc.splitTextToSize(opt, cw - 14), margin + 8, y);
         y += 6.2;
       });
-      y += 3;
-      if (bf.fallback_intro) addText(bf.fallback_intro, margin, 10, "normal", [70, 70, 70]);
-      y += 1;
-      bf.fallback_fields?.forEach(f => {
+      y += 2;
+      if (s2.if_yes) addText(s2.if_yes, margin, 9, "italic", [150, 150, 150]);
+      if (s2.if_no) addText(s2.if_no, margin, 9, "italic", [150, 150, 150]);
+    }
+
+    // Abschnitt 3
+    const s3 = result.section3;
+    if (s3) {
+      sectionBar("ABSCHNITT 3");
+      if (s3.intro) addText(s3.intro, margin, 10, "normal", [70, 70, 70]);
+      y += 2;
+      s3.fields?.forEach(f => {
         checkPage(16);
         addText(f, margin, 10, "bold", [26, 26, 26]);
         doc.setFillColor(254, 244, 238);
@@ -772,7 +822,7 @@ export default function App() {
       });
     }
 
-    // Footer on questions pages
+    // Footer on all pages
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -781,65 +831,6 @@ export default function App() {
       doc.setTextColor(200, 200, 200);
       doc.text("Launch Sisters · Nahm Consulting GmbH", pageW / 2, 291, { align: "center" });
     }
-
-    // Checklist page
-    doc.addPage();
-    y = 0;
-
-    doc.setFillColor(26, 69, 53);
-    doc.rect(0, 0, pageW, 34, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(17);
-    doc.setTextColor(254, 244, 238);
-    doc.text("So teilst du deine Umfrage", margin, 14);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(229, 207, 211);
-    doc.text("Checkliste zur Verbreitung", margin, 23);
-
-    y = 46;
-
-    const drawCheckItem = (text, colorRgb) => {
-      if (y + 10 > 282) { doc.addPage(); y = margin; }
-      doc.setDrawColor(...colorRgb);
-      doc.setLineWidth(0.5);
-      doc.roundedRect(margin, y - 4, 5, 5, 0.5, 0.5, "S");
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.setTextColor(60, 60, 60);
-      const lines = doc.splitTextToSize(text, cw - 12);
-      doc.text(lines, margin + 8, y);
-      y += lines.length * 4.5 + 2;
-    };
-
-    // Green group
-    doc.setFillColor(78, 156, 97);
-    doc.roundedRect(margin, y - 3, cw, 7, 1, 1, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(255, 255, 255);
-    doc.text("BITTE ALLES UMSETZEN", margin + 4, y + 1.5);
-    y += 11;
-
-    CHECKLIST_GREEN.forEach(item => drawCheckItem(item, [78, 156, 97]));
-
-    y += 6;
-
-    // Yellow group
-    doc.setFillColor(201, 162, 39);
-    doc.roundedRect(margin, y - 3, cw, 7, 1, 1, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(9);
-    doc.setTextColor(255, 255, 255);
-    doc.text("OPTIONAL", margin + 4, y + 1.5);
-    y += 11;
-
-    CHECKLIST_YELLOW.forEach(item => drawCheckItem(item, [201, 162, 39]));
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(200, 200, 200);
-    doc.text("Launch Sisters · Nahm Consulting GmbH", pageW / 2, 291, { align: "center" });
 
     doc.save("umfrage-fragen.pdf");
   };
@@ -895,6 +886,23 @@ export default function App() {
             ins("――――――――――\n\n");
           }
 
+          const secLabel = (label) => {
+            const r = ins(`${label}\n\n`);
+            fmtReqs.push({
+              updateTextStyle: {
+                range: { startIndex: r.start, endIndex: r.end - 2 },
+                textStyle: {
+                  bold: true,
+                  fontSize: { magnitude: 13, unit: "PT" },
+                  foregroundColor: { color: { rgbColor: { red: 0.102, green: 0.271, blue: 0.208 } } },
+                },
+                fields: "bold,fontSize,foregroundColor",
+              },
+            });
+          };
+
+          secLabel("Abschnitt 1");
+
           result.questions?.forEach((q) => {
             if (q.number === result.midpoint_after + 1) {
               ins(`\u2015  ${result.midpoint_text}  \u2015\n\n`);
@@ -915,12 +923,15 @@ export default function App() {
             ins("\n");
           });
 
-          const bf = result.booking_flow;
-          if (bf) {
+          if (result.q9_if_no) ins(`${result.q9_if_no}\n`);
+          if (result.q9_if_yes) ins(`${result.q9_if_yes}\n`);
+
+          const s2 = result.section2;
+          if (s2) {
             ins("\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\n\n");
-            if (bf.intro) ins(`${bf.intro}\n\n`);
-            if (bf.heading) {
-              const hRange = ins(`${bf.heading}\n\n`);
+            secLabel("Abschnitt 2");
+            if (s2.heading) {
+              const hRange = ins(`${s2.heading}\n\n`);
               fmtReqs.push({
                 updateTextStyle: {
                   range: { startIndex: hRange.start, endIndex: hRange.end - 2 },
@@ -929,8 +940,8 @@ export default function App() {
                 },
               });
             }
-            if (bf.confirm_question) {
-              const cRange = ins(`${bf.confirm_question}\n`);
+            if (s2.confirm_question) {
+              const cRange = ins(`${s2.confirm_question}\n`);
               fmtReqs.push({
                 updateTextStyle: {
                   range: { startIndex: cRange.start, endIndex: cRange.end - 1 },
@@ -939,9 +950,18 @@ export default function App() {
                 },
               });
             }
-            bf.confirm_options?.forEach((o) => ins(`   \u25cb  ${o}\n`));
-            if (bf.fallback_intro) ins(`\n${bf.fallback_intro}\n`);
-            bf.fallback_fields?.forEach((f) => ins(`${f}: [Freie Antwort]\n`));
+            s2.confirm_options?.forEach((o) => ins(`   \u25cb  ${o}\n`));
+            if (s2.if_yes) ins(`\n${s2.if_yes}\n`);
+            if (s2.if_no) ins(`${s2.if_no}\n`);
+            ins("\n");
+          }
+
+          const s3 = result.section3;
+          if (s3) {
+            ins("\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\n\n");
+            secLabel("Abschnitt 3");
+            if (s3.intro) ins(`${s3.intro}\n\n`);
+            s3.fields?.forEach((f) => ins(`${f}: [Freie Antwort]\n`));
             ins("\n");
           }
 
@@ -981,9 +1001,6 @@ export default function App() {
     tokenClient.requestAccessToken();
   };
 
-  const toggleCheck = (key) => setChecked(c => ({ ...c, [key]: !c[key] }));
-  const checkedCount = Object.values(checked).filter(Boolean).length;
-  const totalItems = CHECKLIST_GREEN.length + CHECKLIST_YELLOW.length;
 
   const reset = () => { setResult(null); setStep("form"); setErr(""); setGdocNotice(""); setChecked({}); };
 
@@ -1079,6 +1096,8 @@ export default function App() {
                 </div>
               )}
 
+              <div className="section-label">Abschnitt 1</div>
+
               <div className="q-list">
                 {result.questions?.map((q) => (
                   <div key={q.number}>
@@ -1108,29 +1127,45 @@ export default function App() {
                 ))}
               </div>
 
-              {result.booking_flow && (
-                <div className="booking-box">
-                  <div className="booking-label">Nach dem Abschicken</div>
-                  {result.booking_flow.intro && (
-                    <div className="booking-cond">{result.booking_flow.intro}</div>
+              {(result.q9_if_no || result.q9_if_yes) && (
+                <div className="branch-note">
+                  {result.q9_if_no && <div>{result.q9_if_no}</div>}
+                  {result.q9_if_yes && <div>{result.q9_if_yes}</div>}
+                </div>
+              )}
+
+              {result.section2 && (
+                <div className="section-block">
+                  <div className="section-label">Abschnitt 2</div>
+                  {result.section2.heading && (
+                    <div className="booking-heading">{result.section2.heading}</div>
                   )}
-                  {result.booking_flow.heading && (
-                    <div className="booking-heading">{result.booking_flow.heading}</div>
-                  )}
-                  {result.booking_flow.confirm_question && (
+                  {result.section2.confirm_question && (
                     <div className="q-card">
-                      <div className="q-text">{result.booking_flow.confirm_question}</div>
+                      <div className="q-text">{result.section2.confirm_question}</div>
                       <ul className="q-options">
-                        {result.booking_flow.confirm_options?.map((o, i) => (
+                        {result.section2.confirm_options?.map((o, i) => (
                           <li key={i}><div className="q-radio" /> {o}</li>
                         ))}
                       </ul>
                     </div>
                   )}
-                  {result.booking_flow.fallback_intro && (
-                    <div className="booking-cond">{result.booking_flow.fallback_intro}</div>
+                  {(result.section2.if_yes || result.section2.if_no) && (
+                    <div className="branch-note">
+                      {result.section2.if_yes && <div>{result.section2.if_yes}</div>}
+                      {result.section2.if_no && <div>{result.section2.if_no}</div>}
+                    </div>
                   )}
-                  {result.booking_flow.fallback_fields?.map((f, i) => (
+                </div>
+              )}
+
+              {result.section3 && (
+                <div className="section-block">
+                  <div className="section-label">Abschnitt 3</div>
+                  {result.section3.intro && (
+                    <div className="booking-cond">{result.section3.intro}</div>
+                  )}
+                  {result.section3.fields?.map((f, i) => (
                     <div className="q-card" key={i}>
                       <div className="q-text">{f}</div>
                       <div className="q-textfield">Freie Antwort der Teilnehmerin</div>
@@ -1138,45 +1173,6 @@ export default function App() {
                   ))}
                 </div>
               )}
-
-              <div className="cl-section">
-                <div className="cl-header">
-                  <div className="cl-header-title">So teilst du deine Umfrage</div>
-                  {checkedCount > 0 && (
-                    <div className="cl-progress">{checkedCount} / {totalItems} erledigt</div>
-                  )}
-                </div>
-                <div className="cl-body">
-                  <div className="cl-group">
-                    <div className="cl-group-label green">Bitte alles umsetzen</div>
-                    {CHECKLIST_GREEN.map((item, i) => {
-                      const key = `g${i}`;
-                      return (
-                        <div key={key} className="cl-item" onClick={() => toggleCheck(key)}>
-                          <div className={`cl-box green-box${checked[key] ? " checked" : ""}`}>
-                            {checked[key] ? "✓" : ""}
-                          </div>
-                          <span className={`cl-text${checked[key] ? " checked" : ""}`}>{item}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="cl-group">
-                    <div className="cl-group-label yellow">Optional</div>
-                    {CHECKLIST_YELLOW.map((item, i) => {
-                      const key = `y${i}`;
-                      return (
-                        <div key={key} className="cl-item" onClick={() => toggleCheck(key)}>
-                          <div className={`cl-box yellow-box${checked[key] ? " checked" : ""}`}>
-                            {checked[key] ? "✓" : ""}
-                          </div>
-                          <span className={`cl-text${checked[key] ? " checked" : ""}`}>{item}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
             </>
           )}
 

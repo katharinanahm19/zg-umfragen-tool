@@ -27,13 +27,23 @@ FRAGEN – feste Reihenfolge:
 
 Zwischentitel nach Frage 5, WORTWÖRTLICH: "Über die Hälfte ist schon geschafft!"
 
-BUCHUNGS-FLOW nach Frage 9 (alles FEST, wortwörtlich übernehmen):
-- intro: "Falls ja:"
+Die Umfrage hat 3 ABSCHNITTE (wie Seiten/Sektionen in einem Formular mit Weiterleitungs-Logik):
+
+ABSCHNITT 1 = die 9 Fragen oben. Nach Frage 9 (alles FEST, wortwörtlich):
+- q9_if_no: "Falls nein: Ende"
+- q9_if_yes: "Falls ja: → Abschnitt 2"
+
+ABSCHNITT 2 (alles FEST, wortwörtlich):
 - heading: "Buche jetzt dein Gespräch: [LINK]"
 - confirm_question: "Hast du einen passenden Termin gefunden?"
 - confirm_options: Ja, ich freue mich darauf!; Nein
-- fallback_intro: "Falls nein: Hinterlasse mir hier deine Kontaktdaten und ich melde mich bei dir, um einen Termin abzustimmen."
-- fallback_fields: Name; E-Mail Adresse; Handynummer
+- if_yes: "Falls ja: Ende"
+- if_no: "Falls nein: → Abschnitt 3"
+
+ABSCHNITT 3 (alles FEST, wortwörtlich):
+- intro: "Hinterlasse mir hier deine Kontaktdaten und ich melde mich bei dir, um einen Termin abzustimmen."
+- fields: Dein Name; Deine Handynummer
+
 Platzhalter [LINK] so stehen lassen.
 
 Antworte NUR mit validem JSON ohne Backticks oder Präambel:
@@ -45,13 +55,18 @@ Antworte NUR mit validem JSON ohne Backticks oder Präambel:
   ],
   "midpoint_after": 5,
   "midpoint_text": "Über die Hälfte ist schon geschafft!",
-  "booking_flow": {
-    "intro": "Falls ja:",
+  "q9_if_no": "Falls nein: Ende",
+  "q9_if_yes": "Falls ja: → Abschnitt 2",
+  "section2": {
     "heading": "Buche jetzt dein Gespräch: [LINK]",
     "confirm_question": "Hast du einen passenden Termin gefunden?",
     "confirm_options": ["Ja, ich freue mich darauf!", "Nein"],
-    "fallback_intro": "Falls nein: Hinterlasse mir hier deine Kontaktdaten und ich melde mich bei dir, um einen Termin abzustimmen.",
-    "fallback_fields": ["Name", "E-Mail Adresse", "Handynummer"]
+    "if_yes": "Falls ja: Ende",
+    "if_no": "Falls nein: → Abschnitt 3"
+  },
+  "section3": {
+    "intro": "Hinterlasse mir hier deine Kontaktdaten und ich melde mich bei dir, um einen Termin abzustimmen.",
+    "fields": ["Dein Name", "Deine Handynummer"]
   }
 }`;
 
