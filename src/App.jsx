@@ -556,6 +556,22 @@ const css = `
   }
 `;
 
+// Feste Teile nach Frage 9. Buchungslink steht bewusst erst in der Bestätigungsnachricht,
+// damit keine Antworten verloren gehen, wenn jemand zum Buchen die Seite verlässt.
+const FIXED_FLOW = {
+  q9_if_no: "Falls nein: Ende",
+  q9_if_yes: "Falls ja: → Abschnitt 2",
+  section2: {
+    fields: ["Dein Name", "Deine Handynummer"],
+    note: "Nach dem Abschicken kannst du direkt deinen kostenlosen Termin buchen.",
+  },
+  confirmation: {
+    label: "Bestätigungsnachricht nach dem Abschicken",
+    hint: "In Google Forms unter Einstellungen → Präsentation → Bestätigungsnachricht eintragen. [LINK] durch deinen Calendly-Link ersetzen.",
+    text: "Vielen Dank für deine Teilnahme!\nWenn du dein kostenloses Analysegespräch möchtest, buch dir hier direkt deinen Termin: [LINK]",
+  },
+};
+
 export default function App() {
   const [step, setStep] = useState("form");
   const [thema, setThema] = useState("");
@@ -594,7 +610,8 @@ export default function App() {
       const clean = raw.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       if (!parsed.questions?.length) throw new Error("Keine Fragen generiert");
-      setResult(parsed);
+      delete parsed.section3;
+      setResult({ ...parsed, ...FIXED_FLOW });
       setStep("result");
     } catch (e) {
       setErr("Fehler bei der Generierung. Bitte erneut versuchen.");
@@ -619,17 +636,12 @@ export default function App() {
     const s2 = result.section2;
     if (s2) {
       t += `\n==========\n\nABSCHNITT 2\n\n`;
-      if (s2.heading) t += `${s2.heading}\n\n`;
-      if (s2.confirm_question) t += `${s2.confirm_question}\n`;
-      s2.confirm_options?.forEach(o => (t += `* ${o}\n`));
-      if (s2.if_yes) t += `\n${s2.if_yes}\n`;
-      if (s2.if_no) t += `${s2.if_no}\n`;
+      s2.fields?.forEach(f => (t += `${f}: TEXTFELD\n`));
+      if (s2.note) t += `\n${s2.note}\n`;
     }
-    const s3 = result.section3;
-    if (s3) {
-      t += `\n==========\n\nABSCHNITT 3\n\n`;
-      if (s3.intro) t += `${s3.intro}\n\n`;
-      s3.fields?.forEach(f => (t += `${f}: TEXTFELD\n`));
+    const cf = result.confirmation;
+    if (cf) {
+      t += `\n==========\n\n${cf.label.toUpperCase()}\n(${cf.hint})\n\n${cf.text}\n`;
     }
     return t.trim();
   };
@@ -786,32 +798,7 @@ export default function App() {
     const s2 = result.section2;
     if (s2) {
       sectionBar("ABSCHNITT 2");
-      if (s2.heading) addText(s2.heading, margin, 11, "bold", [26, 69, 53]);
-      y += 2;
-      if (s2.confirm_question) addText(s2.confirm_question, margin, 11, "bold", [26, 26, 26]);
-      s2.confirm_options?.forEach(opt => {
-        checkPage(8);
-        doc.setDrawColor(189, 136, 146);
-        doc.setLineWidth(0.5);
-        doc.circle(margin + 3.5, y - 1.5, 2, "S");
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.setTextColor(70, 70, 70);
-        doc.text(doc.splitTextToSize(opt, cw - 14), margin + 8, y);
-        y += 6.2;
-      });
-      y += 2;
-      if (s2.if_yes) addText(s2.if_yes, margin, 9, "italic", [150, 150, 150]);
-      if (s2.if_no) addText(s2.if_no, margin, 9, "italic", [150, 150, 150]);
-    }
-
-    // Abschnitt 3
-    const s3 = result.section3;
-    if (s3) {
-      sectionBar("ABSCHNITT 3");
-      if (s3.intro) addText(s3.intro, margin, 10, "normal", [70, 70, 70]);
-      y += 2;
-      s3.fields?.forEach(f => {
+      s2.fields?.forEach(f => {
         checkPage(16);
         addText(f, margin, 10, "bold", [26, 26, 26]);
         doc.setFillColor(254, 244, 238);
@@ -820,6 +807,16 @@ export default function App() {
         doc.roundedRect(margin, y, cw, 11, 1, 1, "FD");
         y += 15;
       });
+      if (s2.note) addText(s2.note, margin, 11, "bold", [26, 69, 53]);
+    }
+
+    // Bestätigungsnachricht (mit Buchungslink)
+    const cf = result.confirmation;
+    if (cf) {
+      sectionBar(cf.label.toUpperCase());
+      addText(cf.hint, margin, 9, "italic", [150, 150, 150]);
+      y += 2;
+      cf.text.split("\n").forEach(line => addText(line, margin, 10, "normal", [70, 70, 70]));
     }
 
     // Footer on all pages
@@ -930,39 +927,33 @@ export default function App() {
           if (s2) {
             ins("\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\n\n");
             secLabel("Abschnitt 2");
-            if (s2.heading) {
-              const hRange = ins(`${s2.heading}\n\n`);
+            s2.fields?.forEach((f) => ins(`${f}: [Freie Antwort]\n`));
+            if (s2.note) {
+              const nRange = ins(`\n${s2.note}\n`);
               fmtReqs.push({
                 updateTextStyle: {
-                  range: { startIndex: hRange.start, endIndex: hRange.end - 2 },
+                  range: { startIndex: nRange.start + 1, endIndex: nRange.end - 1 },
                   textStyle: { bold: true },
                   fields: "bold",
                 },
               });
             }
-            if (s2.confirm_question) {
-              const cRange = ins(`${s2.confirm_question}\n`);
-              fmtReqs.push({
-                updateTextStyle: {
-                  range: { startIndex: cRange.start, endIndex: cRange.end - 1 },
-                  textStyle: { bold: true },
-                  fields: "bold",
-                },
-              });
-            }
-            s2.confirm_options?.forEach((o) => ins(`   \u25cb  ${o}\n`));
-            if (s2.if_yes) ins(`\n${s2.if_yes}\n`);
-            if (s2.if_no) ins(`${s2.if_no}\n`);
             ins("\n");
           }
 
-          const s3 = result.section3;
-          if (s3) {
+          const cf = result.confirmation;
+          if (cf) {
             ins("\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\u2015\n\n");
-            secLabel("Abschnitt 3");
-            if (s3.intro) ins(`${s3.intro}\n\n`);
-            s3.fields?.forEach((f) => ins(`${f}: [Freie Antwort]\n`));
-            ins("\n");
+            secLabel(cf.label);
+            const hRange = ins(`${cf.hint}\n\n`);
+            fmtReqs.push({
+              updateTextStyle: {
+                range: { startIndex: hRange.start, endIndex: hRange.end - 2 },
+                textStyle: { italic: true },
+                fields: "italic",
+              },
+            });
+            ins(`${cf.text}\n\n`);
           }
 
           ins("Launch Sisters \u00b7 Nahm Consulting GmbH");
@@ -1137,40 +1128,27 @@ export default function App() {
               {result.section2 && (
                 <div className="section-block">
                   <div className="section-label">Abschnitt 2</div>
-                  {result.section2.heading && (
-                    <div className="booking-heading">{result.section2.heading}</div>
-                  )}
-                  {result.section2.confirm_question && (
-                    <div className="q-card">
-                      <div className="q-text">{result.section2.confirm_question}</div>
-                      <ul className="q-options">
-                        {result.section2.confirm_options?.map((o, i) => (
-                          <li key={i}><div className="q-radio" /> {o}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  {(result.section2.if_yes || result.section2.if_no) && (
-                    <div className="branch-note">
-                      {result.section2.if_yes && <div>{result.section2.if_yes}</div>}
-                      {result.section2.if_no && <div>{result.section2.if_no}</div>}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {result.section3 && (
-                <div className="section-block">
-                  <div className="section-label">Abschnitt 3</div>
-                  {result.section3.intro && (
-                    <div className="booking-cond">{result.section3.intro}</div>
-                  )}
-                  {result.section3.fields?.map((f, i) => (
+                  {result.section2.fields?.map((f, i) => (
                     <div className="q-card" key={i}>
                       <div className="q-text">{f}</div>
                       <div className="q-textfield">Freie Antwort der Teilnehmerin</div>
                     </div>
                   ))}
+                  {result.section2.note && (
+                    <div className="booking-heading">{result.section2.note}</div>
+                  )}
+                </div>
+              )}
+
+              {result.confirmation && (
+                <div className="section-block">
+                  <div className="section-label">{result.confirmation.label}</div>
+                  <div className="booking-cond">{result.confirmation.hint}</div>
+                  <div className="q-card">
+                    {result.confirmation.text.split("\n").map((line, i) => (
+                      <div className="q-text" key={i}>{line}</div>
+                    ))}
+                  </div>
                 </div>
               )}
             </>

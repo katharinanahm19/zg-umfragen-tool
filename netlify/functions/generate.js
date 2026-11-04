@@ -27,22 +27,18 @@ FRAGEN – feste Reihenfolge:
 
 Zwischentitel nach Frage 5, WORTWÖRTLICH: "Über die Hälfte ist schon geschafft!"
 
-Die Umfrage hat 3 ABSCHNITTE (wie Seiten/Sektionen in einem Formular mit Weiterleitungs-Logik):
+Die Umfrage hat 2 ABSCHNITTE (wie Seiten/Sektionen in einem Formular mit Weiterleitungs-Logik). Der Buchungslink steht bewusst NICHT im Formular, sondern erst in der Bestätigungsnachricht nach dem Abschicken. So gehen keine Antworten verloren, wenn jemand zum Buchen die Seite verlässt.
 
 ABSCHNITT 1 = die 9 Fragen oben. Nach Frage 9 (alles FEST, wortwörtlich):
 - q9_if_no: "Falls nein: Ende"
 - q9_if_yes: "Falls ja: → Abschnitt 2"
 
 ABSCHNITT 2 (alles FEST, wortwörtlich):
-- heading: "Buche jetzt dein Gespräch: [LINK]"
-- confirm_question: "Hast du einen passenden Termin gefunden?"
-- confirm_options: Ja, ich freue mich darauf!; Nein
-- if_yes: "Falls ja: Ende"
-- if_no: "Falls nein: → Abschnitt 3"
-
-ABSCHNITT 3 (alles FEST, wortwörtlich):
-- intro: "Hinterlasse mir hier deine Kontaktdaten und ich melde mich bei dir, um einen Termin abzustimmen."
 - fields: Dein Name; Deine Handynummer
+- note: "Nach dem Abschicken kannst du direkt deinen kostenlosen Termin buchen."
+
+BESTÄTIGUNGSNACHRICHT nach dem Abschicken (alles FEST, wortwörtlich):
+- text: "Vielen Dank für deine Teilnahme!\\nWenn du dein kostenloses Analysegespräch möchtest, buch dir hier direkt deinen Termin: [LINK]"
 
 Platzhalter [LINK] so stehen lassen.
 
@@ -58,15 +54,11 @@ Antworte NUR mit validem JSON ohne Backticks oder Präambel:
   "q9_if_no": "Falls nein: Ende",
   "q9_if_yes": "Falls ja: → Abschnitt 2",
   "section2": {
-    "heading": "Buche jetzt dein Gespräch: [LINK]",
-    "confirm_question": "Hast du einen passenden Termin gefunden?",
-    "confirm_options": ["Ja, ich freue mich darauf!", "Nein"],
-    "if_yes": "Falls ja: Ende",
-    "if_no": "Falls nein: → Abschnitt 3"
+    "fields": ["Dein Name", "Deine Handynummer"],
+    "note": "Nach dem Abschicken kannst du direkt deinen kostenlosen Termin buchen."
   },
-  "section3": {
-    "intro": "Hinterlasse mir hier deine Kontaktdaten und ich melde mich bei dir, um einen Termin abzustimmen.",
-    "fields": ["Dein Name", "Deine Handynummer"]
+  "confirmation": {
+    "text": "Vielen Dank für deine Teilnahme!\\nWenn du dein kostenloses Analysegespräch möchtest, buch dir hier direkt deinen Termin: [LINK]"
   }
 }`;
 
