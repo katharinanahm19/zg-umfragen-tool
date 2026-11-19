@@ -1,3 +1,14 @@
+// Netlify BACKGROUND Function (Dateiname endet auf "-background" -> läuft asynchron bis 15 Min,
+// umgeht das Zeitlimit synchroner Functions). Die Generierung dauert ~16-25 s; das war vorher
+// der Grund für "Fehler bei der Generierung". Ergebnis landet in Netlify Blobs, das Frontend
+// pollt status.mjs.
+//
+// Aufruf: POST /.netlify/functions/generate-background  { id: string, thema, zielgruppe }
+
+import { getStore } from "@netlify/blobs";
+
+export const ID_PATTERN = /^[a-z0-9-]{8,64}$/i;
+
 const SYSTEM = `Du bist eine Expertin für Zielgruppenumfragen im Online-Business.
 
 Erstelle eine komplette Zielgruppenumfrage mit genau 9 Fragen. Die meisten Teile sind FEST vorgegeben und müssen WORTWÖRTLICH übernommen werden. Nur vier Fragen (2, 3, 4, 6), deren Optionen und der Intro-Text werden auf das eingegebene Thema des Online-Programms und die Zielgruppe zugeschnitten.
@@ -52,65 +63,59 @@ Antworte NUR mit validem JSON ohne Backticks oder Präambel:
   "midpoint_after": 5,
   "midpoint_text": "Über die Hälfte ist schon geschafft!",
   "q9_if_no": "Falls nein: Ende",
-  "q9_if_yes": "Falls ja: → Abschnitt 2",
-  "section2": {
-    "fields": ["Dein Name", "Deine Handynummer"],
-    "note": "Nach dem Abschicken kannst du direkt deinen kostenlosen Termin buchen."
-  },
-  "confirmation": {
-    "text": "Vielen Dank für deine Teilnahme!\\nWenn du dein kostenloses Analysegespräch möchtest, buch dir hier direkt deinen Termin: [LINK]"
-  }
+  "q9_if_yes": "Falls ja: → Abschnitt 2"
 }`;
 
-export default async (request) => {
-  if (request.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type" },
-    });
-  }
-
-  if (request.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
-  }
-
-  try {
-    const { thema, zielgruppe } = await request.json();
-
-    if (!thema || !zielgruppe) {
-      return new Response(JSON.stringify({ error: "thema und zielgruppe erforderlich" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
+async function callAnthropic(thema, zielgruppe, apiKey) {
+  const body = JSON.stringify({
+    model: "claude-sonnet-4-6",
+    max_tokens: 3500,
+    system: SYSTEM,
+    messages: [{ role: "user", content: `Online-Programm Thema: ${thema}\nZielgruppe: ${zielgruppe}` }],
+  });
+  let lastErr = "";
+  // Bis zu 3 Versuche: Überlast (429/529) und Netzfehler sind vorübergehend.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+        body,
       });
+      const data = await resp.json().catch(() => null);
+      if (resp.ok && data?.content?.length) return data;
+      lastErr = data?.error?.message || `Anthropic ${resp.status}`;
+      if (resp.status !== 429 && resp.status !== 529 && resp.status < 500) break;
+    } catch (e) {
+      lastErr = String(e?.message || e);
     }
-
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 3500,
-        system: SYSTEM,
-        messages: [{ role: "user", content: `Online-Programm Thema: ${thema}\nZielgruppe: ${zielgruppe}` }],
-      }),
-    });
-
-    const data = await response.json();
-
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
-    });
-  } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * attempt));
   }
-};
+  throw new Error(lastErr || "Anthropic-Aufruf fehlgeschlagen");
+}
 
-export const config = { path: "/api/generate" };
+export default async (request) => {
+  let body;
+  try { body = await request.json(); } catch { return new Response("bad json", { status: 400 }); }
+
+  const { id, thema, zielgruppe } = body || {};
+  if (!ID_PATTERN.test(id || "") || !thema || !zielgruppe) {
+    return new Response("missing id/thema/zielgruppe", { status: 400 });
+  }
+
+  const store = getStore("zg-umfragen");
+  try {
+    const data = await callAnthropic(thema, zielgruppe, process.env.ANTHROPIC_API_KEY);
+    const text = (data.content || []).map((b) => b.text || "").join("");
+    const clean = text.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(clean);
+    if (!Array.isArray(parsed.questions) || parsed.questions.length === 0) {
+      throw new Error("Keine Fragen generiert");
+    }
+    delete parsed.section3;
+    await store.setJSON(id, { status: "done", result: parsed });
+  } catch (e) {
+    await store.setJSON(id, { status: "error", error: String(e?.message || e) });
+  }
+  return new Response("ok", { status: 202 });
+};

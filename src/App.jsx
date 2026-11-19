@@ -597,22 +597,38 @@ export default function App() {
     setErr("");
     setStep("loading");
 
+    // Eindeutige ID für diesen Lauf (Background-Function schreibt das Ergebnis darunter in Netlify Blobs).
+    const id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2))
+      .replace(/[^a-z0-9-]/gi, "");
+
     try {
-      const res = await fetch("/api/generate", {
+      // 1. Background-Function starten (antwortet sofort mit 202, läuft dann bis zu 15 Min weiter).
+      const start = await fetch("/.netlify/functions/generate-background", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ thema, zielgruppe }),
+        body: JSON.stringify({ id, thema, zielgruppe }),
       });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      if (!data.content?.length) throw new Error("Leere Antwort");
-      const raw = data.content.map(b => b.text || "").join("");
-      const clean = raw.replace(/```json|```/g, "").trim();
-      const parsed = JSON.parse(clean);
-      if (!parsed.questions?.length) throw new Error("Keine Fragen generiert");
-      delete parsed.section3;
-      setResult({ ...parsed, ...FIXED_FLOW });
-      setStep("result");
+      if (start.status !== 202 && !start.ok) throw new Error("Start fehlgeschlagen");
+
+      // 2. Ergebnis pollen (bis ~2,5 Min), bis status "done" oder "error" liefert.
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 2500));
+        let data;
+        try {
+          data = await (await fetch("/.netlify/functions/status?id=" + encodeURIComponent(id))).json();
+        } catch {
+          continue;
+        }
+        if (data.status === "done") {
+          const parsed = data.result;
+          if (!parsed?.questions?.length) throw new Error("Keine Fragen generiert");
+          setResult({ ...parsed, ...FIXED_FLOW });
+          setStep("result");
+          return;
+        }
+        if (data.status === "error") throw new Error(data.error || "Fehler");
+      }
+      throw new Error("Zeitüberschreitung");
     } catch (e) {
       setErr("Fehler bei der Generierung. Bitte erneut versuchen.");
       setStep("form");
